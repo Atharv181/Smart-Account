@@ -16,6 +16,7 @@
     "@biconomy/node-client": "^3.1.0",
     "@biconomy/paymaster": "^3.1.0",
     "@biconomy/web3-auth": "^3.1.0",
+    "dotenv": "^16.3.1",
     "ethers": "^5.7.2",
     "next": "13.5.4",
     "react": "^18",

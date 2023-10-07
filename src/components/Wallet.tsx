@@ -3,6 +3,7 @@ import SocialLogin from "@biconomy/web3-auth";
 import { ethers, providers } from "ethers";
 import { ChainId } from "@biconomy/core-types";
 import { BiconomySmartAccount, BiconomySmartAccountConfig } from "@biconomy/account";
+import { bundler, paymaster } from "@/constants";
 
 export default function Wallet(){
     const sdkRef = useRef<SocialLogin | null>(null);
@@ -16,6 +17,7 @@ export default function Wallet(){
         if (interval){
             configureLogin = setInterval(() =>{
                 if(!!sdkRef.current?.provider){
+                    setupSmartAccount();
                     clearInterval(configureLogin);
                 }
             }, 1000);
@@ -37,10 +39,11 @@ export default function Wallet(){
             enableInterval(true);
         } else {
             console.log("hello");
+            setupSmartAccount();
         }
     }
 
-    async function steupSmartAccount() {
+    async function setupSmartAccount() {
         try {
             if (!sdkRef.current?.provider) {
                 return; 
@@ -71,16 +74,12 @@ export default function Wallet(){
 
         setLoading(false);
     }
+
+    async function logOut() {
+        await sdkRef.current?.logout();
+        sdkRef.current?.hideWallet();
+      
+        setSmartAccount(undefined);
+        enableInterval(false);
+      }
 }
-
-
-
-
-
-
-
-
-
-
-
-
