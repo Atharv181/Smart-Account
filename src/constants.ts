@@ -14,4 +14,3 @@ export const bundler: IBundler = new Bundler({
 export const paymaster: IPaymaster = new BiconomyPaymaster({
     paymasterUrl: process.env.PAYMASTER_API || "",
 });
-
