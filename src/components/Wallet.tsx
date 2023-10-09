@@ -84,7 +84,6 @@ export default function Wallet(){
         enableInterval(false);
       }
 
-
       return (
         <Fragment>
           {smartAccount && (
