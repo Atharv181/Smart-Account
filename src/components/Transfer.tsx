@@ -1,5 +1,8 @@
 import { BiconomySmartAccount } from "@biconomy/account";
 import { useEffect, useState } from "react";
+import { ethers } from "ethers";
+import { USDC_CONTRACT_ADDRESS, ERC20ABI } from "@/constants";
+import { IHybridPaymaster, PaymasterMode, SponsorUserOperationDto} from "@biconomy/paymaster";
 
 export default function Transfer({
   smartAccount,
@@ -7,6 +10,8 @@ export default function Transfer({
   smartAccount: BiconomySmartAccount;
 }) {
   const [smartContractAddress, setSmartContractAddress] = useState("");
+  const [isLoading, setIsLoading] = useState(false);  
+  const [recipient, setRecipient] = useState("");  
 
   async function getSmartContractAddress() {
     const smartContractAddress = await smartAccount.getSmartAccountAddress();
@@ -17,4 +22,81 @@ export default function Transfer({
   useEffect(() => {
     getSmartContractAddress();
   }, []);
+
+  async function transfer() {
+    try {
+        setIsLoading(true);
+
+        const readProvider = smartAccount.provider;
+        const tokenContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20ABI, readProvider);
+        const [amount, setAmount] = useState(0);
+
+        const decimals = await tokenContract.decimals();
+
+        const amountInLowestUnit = ethers.utils.parseUnits(amount.toString(),decimals);
+        
+        const populatedTransferTxn = await tokenContract.populateTransaction.transfer(recipient,amountInLowestUnit);
+        const calldata = populatedTransferTxn.data;
+
+        //UserOp
+        const userOp = await smartAccount.buildUserOp([
+            {
+                to: USDC_CONTRACT_ADDRESS,
+                data: calldata,
+            },
+        ]);
+
+        //Paymaster
+        const biconomyPaymaster = smartAccount.paymaster as IHybridPaymaster<SponsorUserOperationDto>;
+        const feeQuoteResponse =await biconomyPaymaster.getPaymasterFeeQuotesOrData(userOp, {
+            mode: PaymasterMode.ERC20,
+            tokenList: [],
+            preferredToken: USDC_CONTRACT_ADDRESS,
+        });
+        const feeQuote = feeQuoteResponse.feeQuotes;
+        if (!feeQuote) throw new Error("Could not fetch fee quote in USDC");    
+        const spender = feeQuoteResponse.tokenPaymasterAddress || "";
+        const selectedFeeQuote = feeQuote[0];
+        
+
+        let finalUserOp = await smartAccount.buildTokenPaymasterUserOp(userOp, {
+            feeQuote: selectedFeeQuote,
+            spender: spender,
+            maxApproval: true,
+        });
+
+        const paymasterServiceData = {
+            mode: PaymasterMode.ERC20,
+            feeTokenAddress: USDC_CONTRACT_ADDRESS,
+            calculateGasLimits: true,
+        };  
+
+        const paymasterAndDataResponse = await biconomyPaymaster.getPaymasterAndData(
+          finalUserOp,
+          paymasterServiceData
+        );
+
+        finalUserOp.paymasterAndData = paymasterAndDataResponse.paymasterAndData;
+
+        if (paymasterAndDataResponse.callGasLimit &&
+            paymasterAndDataResponse.verificationGasLimit &&
+            paymasterAndDataResponse.preVerificationGas)
+            {
+                finalUserOp.callGasLimit = paymasterAndDataResponse.callGasLimit;
+                finalUserOp.verificationGasLimit = paymasterAndDataResponse.verificationGasLimit;
+                finalUserOp.preVerificationGas = paymasterAndDataResponse.preVerificationGas;
+        }
+
+        //send userOps
+        const userOpResponse = await smartAccount.sendUserOp(finalUserOp);
+        const receipt = await userOpResponse.wait();
+
+        console.log(`Transaction receipt: ${JSON.stringify(receipt, null, 2)}`);
+        window.alert("Transaction successful!");
+    } catch (error) {
+        console.log(error);
+    }
+    setIsLoading(false);
+  }
 }
+
