@@ -11,7 +11,10 @@ export default function Transfer({
 }) {
   const [smartContractAddress, setSmartContractAddress] = useState("");
   const [isLoading, setIsLoading] = useState(false);  
-  const [recipient, setRecipient] = useState("");  
+  const [recipient, setRecipient] = useState("");
+  const readProvider = smartAccount.provider;
+  const tokenContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20ABI, readProvider);
+  const [amount, setAmount] = useState(0);  
 
   async function getSmartContractAddress() {
     const smartContractAddress = await smartAccount.getSmartAccountAddress();
@@ -26,10 +29,6 @@ export default function Transfer({
   async function transfer() {
     try {
         setIsLoading(true);
-
-        const readProvider = smartAccount.provider;
-        const tokenContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20ABI, readProvider);
-        const [amount, setAmount] = useState(0);
 
         const decimals = await tokenContract.decimals();
 
@@ -98,5 +97,41 @@ export default function Transfer({
     }
     setIsLoading(false);
   }
+
+  return (
+    <div>
+      <p className="text-sm">
+        {" "}
+        Your smart account address is : {smartContractAddress}
+      </p>
+      {isLoading ? (
+        <div>Loading...</div>
+      ) : (
+        <div>
+          <p>Transfer tokens from your account to another :</p>
+          <div className="mt-5  flex w-auto flex-col gap-2">
+            <input
+              className="rounded-xl border-2 p-1 text-gray-500"
+              type="text"
+              placeholder="Enter address"
+              onChange={(e) => setRecipient(e.target.value)}
+            />
+            <input
+              className="rounded-xl border-2 p-1 text-gray-500"
+              type="number"
+              placeholder="Enter amount"
+              onChange={(e) => setAmount(Number(e.target.value))}
+            />
+            <button
+              className="w-32 rounded-lg bg-gradient-to-r from-green-400 to-blue-500 px-4 py-2 font-medium transition-all hover:from-green-500 hover:to-blue-600"
+              onClick={transfer}
+            >
+              Transfer
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
